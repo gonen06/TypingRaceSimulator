@@ -1,13 +1,8 @@
 /**
- * Write a description of class Typist here.
+
  *
- * Starter code generously abandoned by Ty Posaurus, your predecessor,
- * who typed with two fingers and considered that "good enough".
- * He left a sticky note: "the slide-back thing is optional probably".
- * It is not optional. Good luck.
- *
- * @author (your name)
- * @version (a version number or a date)
+ * @author Ahmet Gonen
+ * @version 1
  */
 public class Typist
 {
@@ -18,6 +13,12 @@ public class Typist
     // A third tracks HOW MANY turns of burnout remain (not just whether they are burnt out).
     // The remaining three should be fairly obvious.
 
+    private char symbol;
+    private String name;
+    private int progress;
+    private boolean isBurntOut;
+    private int burnoutTurnsRemaining;
+    private double accuracy;
 
 
 
@@ -32,8 +33,18 @@ public class Typist
      */
     public Typist(char typistSymbol, String typistName, double typistAccuracy)
     {
+        this.symbol = typistSymbol;
+        this.name = typistName;
+        this.accuracy = typistAccuracy;
 
+        this.progress = 0;      
+        this.isBurntOut = false;        
+        this.burnoutTurnsRemaining = 0;
     }
+
+
+
+    
 
 
     // Methods of class Typist
@@ -66,7 +77,7 @@ public class Typist
      */
     public double getAccuracy()
     {
-        return 0.0; // placeholder - replace with correct implementation
+        return this.accuracy;
     }
 
     /**
@@ -78,7 +89,7 @@ public class Typist
      */
     public int getProgress()
     {
-        return 0; // placeholder - replace with correct implementation
+      return this.progress;
     }
 
     /**
@@ -88,7 +99,7 @@ public class Typist
      */
     public String getName()
     {
-        return ""; // placeholder - replace with correct implementation
+      return this.name;
     }
 
     /**
@@ -98,9 +109,8 @@ public class Typist
      */
     public char getSymbol()
     {
-        return ' '; // placeholder - replace with correct implementation
+      return this.symbol;
     }
-
     /**
      * Returns the number of turns of burnout remaining.
      * Returns 0 if the typist is not currently burnt out.
@@ -109,7 +119,7 @@ public class Typist
      */
     public int getBurnoutTurnsRemaining()
     {
-        return 0; // placeholder - replace with correct implementation
+      return this.burnoutTurnsRemaining;
     }
 
     /**
@@ -128,7 +138,7 @@ public class Typist
      */
     public boolean isBurntOut()
     {
-        return false; // placeholder - replace with correct implementation
+      return this.isBurntOut;
     }
 
     /**
