@@ -58,6 +58,9 @@ public class Typist
     public void burnOut(int turns)
     {
 
+        this.isBurntOut = true;
+        this.burnoutTurnsRemaining = turns;
+
     }
 
     /**
@@ -67,6 +70,15 @@ public class Typist
      */
     public void recoverFromBurnout()
     {
+
+        if (this.isBurntOut) {
+            this.burnoutTurnsRemaining = this.burnoutTurnsRemaining - 1;
+            
+            if (this.burnoutTurnsRemaining <= 0) {
+                this.isBurntOut = false;
+                this.burnoutTurnsRemaining = 0;
+            }
+        }
 
     }
 
@@ -128,7 +140,9 @@ public class Typist
      */
     public void resetToStart()
     {
-
+        this.progress = 0;
+        this.isBurntOut = false;
+        this.burnoutTurnsRemaining = 0;
     }
 
     /**
@@ -147,7 +161,7 @@ public class Typist
      */
     public void typeCharacter()
     {
-
+        this.progress = this.progress + 1;
     }
 
     /**
@@ -158,7 +172,11 @@ public class Typist
      */
     public void slideBack(int amount)
     {
-
+        this.progress = this.progress - amount;
+        
+        if (this.progress < 0) {
+            this.progress = 0;
+        }
     }
 
     /**
@@ -170,6 +188,14 @@ public class Typist
     public void setAccuracy(double newAccuracy)
     {
 
+        if (newAccuracy < 0.0) {
+            this.accuracy = 0.0;
+        } else if (newAccuracy > 1.0) {
+            this.accuracy = 1.0;
+        } else {
+            this.accuracy = newAccuracy;
+        }
+
     }
 
     /**
@@ -179,7 +205,7 @@ public class Typist
      */
     public void setSymbol(char newSymbol)
     {
-
+        this.symbol = newSymbol;
     }
 
 }
