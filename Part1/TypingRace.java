@@ -78,9 +78,10 @@ public class TypingRace
         boolean finished = false;
 
         // Reset all typists to the start of the passage
-        // (Ty was in a hurry here)
+        // Bug Fixed, added seat3
         seat1Typist.resetToStart();
         seat2Typist.resetToStart();
+        seat3Typist.resetToStart();
 
         while (!finished)
         {
@@ -104,7 +105,15 @@ public class TypingRace
             } catch (Exception e) {}
         }
 
-        // TODO (Task 2a): Print the winner's name here
+        // TODO (Task 2a): Print the winner's name here. DONE
+
+        if (raceFinishedBy(seat1Typist)) {
+        System.out.println("And the winner is... " + seat1Typist.getName() + "!");
+        } else if (raceFinishedBy(seat2Typist)) {
+        System.out.println("And the winner is... " + seat2Typist.getName() + "!");
+        } else if (raceFinishedBy(seat3Typist)) {
+        System.out.println("And the winner is... " + seat3Typist.getName() + "!");
+        }
     }
 
     /**
@@ -122,6 +131,10 @@ public class TypingRace
      */
     private void advanceTypist(Typist theTypist)
     {
+        if (theTypist == null) { // to not get NullPointerException 
+        return;
+    }
+
         if (theTypist.isBurntOut())
         {
             // Recovering from burnout — skip this turn
@@ -157,7 +170,7 @@ public class TypingRace
      */
     private boolean raceFinishedBy(Typist theTypist)
     {
-        // Bug Fixed
+        // Bug Fixed, == to >=
         if (theTypist.getProgress() >= passageLength)
         {
             return true;
