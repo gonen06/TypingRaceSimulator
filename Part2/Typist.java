@@ -2,7 +2,7 @@
 
  *
  * @author Ahmet Gonen
- * @version 1
+ * @version 2
  */
 public class Typist
 {
@@ -20,6 +20,16 @@ public class Typist
     private int burnoutTurnsRemaining;
     private double accuracy;
 
+    // FOR PART 2
+
+    private java.awt.Color color;    
+    private String typingStyle;        
+    private String keyboardType;        
+    private String accessory;          
+    
+    private int mistypeCount;         
+    private int totalKeystrokes;       
+    private int totalBurnoutEvents;
 
 
     // Constructor of class Typist
@@ -60,6 +70,7 @@ public class Typist
 
         this.isBurntOut = true;
         this.burnoutTurnsRemaining = turns;
+        this.recordBurnoutEvent();
 
     }
 
@@ -143,6 +154,9 @@ public class Typist
         this.progress = 0;
         this.isBurntOut = false;
         this.burnoutTurnsRemaining = 0;
+        this.mistypeCount = 0;
+        this.totalKeystrokes = 0;
+        this.totalBurnoutEvents = 0;
     }
 
     /**
@@ -162,6 +176,8 @@ public class Typist
     public void typeCharacter()
     {
         this.progress = this.progress + 1;
+
+        this.totalKeystrokes = this.totalKeystrokes +1;
     }
 
     /**
@@ -173,6 +189,10 @@ public class Typist
     public void slideBack(int amount)
     {
         this.progress = this.progress - amount;
+
+        this.addMistype();
+
+        this.totalKeystrokes = this.totalKeystrokes + 1;
         
         if (this.progress < 0) {
             this.progress = 0;
@@ -207,5 +227,29 @@ public class Typist
     {
         this.symbol = newSymbol;
     }
+
+    // Getter and Setters for Part2
+    
+    public void setColor(java.awt.Color color) { this.color = color; }
+    public java.awt.Color getColor() { return this.color != null ? this.color : java.awt.Color.GRAY; } // Varsayılan renk Gri
+
+    public void setTypingStyle(String style) { this.typingStyle = style; }
+    public String getTypingStyle() { return this.typingStyle; }
+
+    public void setKeyboardType(String type) { this.keyboardType = type; }
+    public String getKeyboardType() { return this.keyboardType; }
+
+    public void setAccessory(String accessory) { this.accessory = accessory; }
+    public String getAccessory() { return this.accessory; }
+
+
+    public void addMistype() { this.mistypeCount++; }
+    public int getMistypeCount() { return this.mistypeCount; }
+    
+    public void addKeystroke() { this.totalKeystrokes++; }
+    public int getTotalKeystrokes() { return this.totalKeystrokes; }
+    
+    public void recordBurnoutEvent() { this.totalBurnoutEvents++; }
+    public int getTotalBurnoutEvents() { return this.totalBurnoutEvents; }
 
 }
