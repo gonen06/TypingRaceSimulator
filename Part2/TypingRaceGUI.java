@@ -3,28 +3,37 @@ import javax.swing.*;
 
 public class TypingRaceGUI extends JFrame {
 
+    // UI navigation and core containers
     private CardLayout cardLayout;
     private JPanel mainContainer;
     private JPanel customizePanel;
+    private JPanel racePanel;
     private JSpinner seatSpinner;
 
+    // Simulation data
+    private java.util.List<Typist> activeTypists = new java.util.ArrayList<>();
+    private JTextPane passageArea; 
+    private JPanel progressContainer;
+    private String currentPassage = "The quick brown fox jumps over the lazy dog.";
+
     public TypingRaceGUI() {
+        // Main window configuration
         setTitle("Typing Race Simulator - Ultimate Edition");
         setSize(1000, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-   
+        // Initialize CardLayout for screen switching
         cardLayout = new CardLayout();
         mainContainer = new JPanel(cardLayout);
 
-
+        // Create individual screens
         JPanel configPanel = createConfigPanel();
-        JPanel racePanel = createRacePanel();
+        this.racePanel = createRacePanel(); 
         JPanel statsPanel = createStatsPanel();
         customizePanel = new JPanel(new BorderLayout());
 
-   
+        // Register screens to the main container
         mainContainer.add(configPanel, "CONFIG");
         mainContainer.add(customizePanel, "CUSTOMIZE");
         mainContainer.add(racePanel, "RACE");
@@ -32,12 +41,12 @@ public class TypingRaceGUI extends JFrame {
 
         add(mainContainer);
 
-      
+        // Show the initial configuration screen on launch
         cardLayout.show(mainContainer, "CONFIG");
     }
 
-
-private JPanel createConfigPanel() {
+    private JPanel createConfigPanel() {
+        // Setup for the initial race configuration screen
         JPanel panel = new JPanel(new BorderLayout(20, 20));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 40, 20, 40));
 
@@ -48,18 +57,21 @@ private JPanel createConfigPanel() {
         JPanel settingsPanel = new JPanel();
         settingsPanel.setLayout(new BoxLayout(settingsPanel, BoxLayout.Y_AXIS));
 
-        // Passage Section
+        // Passage Selection Section
         JPanel passagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         passagePanel.add(new JLabel("Passage Length/Type: "));
         JComboBox<String> passageBox = new JComboBox<>(new String[]{"Short Passage", "Medium Passage", "Long Passage", "Custom Text..."});
         passagePanel.add(passageBox);
+        
         JTextField customTextField = new JTextField(20);
         customTextField.setEnabled(false);
         passagePanel.add(customTextField);
+        
+        // Enable custom text field only when "Custom Text" is selected
         passageBox.addActionListener(e -> customTextField.setEnabled("Custom Text...".equals(passageBox.getSelectedItem())));
         settingsPanel.add(passagePanel);
 
-        // Seat Count 
+        // Participant Count Selection (2-6)
         JPanel seatPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         seatPanel.add(new JLabel("Number of Typists (2-6): "));
         seatSpinner = new JSpinner(new SpinnerNumberModel(2, 2, 6, 1));
@@ -67,7 +79,7 @@ private JPanel createConfigPanel() {
         seatPanel.add(seatSpinner);
         settingsPanel.add(seatPanel);
 
-        // Modifiers
+        // Global Modifier Flags
         JPanel modWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JPanel modPanel = new JPanel(new GridLayout(3, 1, 5, 5));
         modPanel.setBorder(BorderFactory.createTitledBorder("Modifiers"));
@@ -79,21 +91,37 @@ private JPanel createConfigPanel() {
 
         panel.add(settingsPanel, BorderLayout.CENTER);
 
+        // Navigation button to customization screen
         JButton nextBtn = new JButton("Next: Customize Typists >>");
         nextBtn.setPreferredSize(new Dimension(0, 50));
         nextBtn.setFont(new Font("Arial", Font.BOLD, 18));
         nextBtn.addActionListener(e -> {
-            int count = (Integer) seatSpinner.getValue();
-            prepareCustomizePanel(count);
-            cardLayout.show(mainContainer, "CUSTOMIZE");
-        });
+    // Check if Custom Text is selected
+    if ("Custom Text...".equals(passageBox.getSelectedItem())) {
+        String userText = customTextField.getText().trim();
+        if (userText.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter some custom text!");
+            return;
+        }
+        currentPassage = userText; // Update the race text
+    } else {
+        String selected = (String) passageBox.getSelectedItem();
+        if ("Short Passage".equals(selected)) currentPassage = "The quick brown fox.";
+        else if ("Medium Passage".equals(selected)) currentPassage = "The quick brown fox jumps over the lazy dog.";
+        else if ("Long Passage".equals(selected)) currentPassage = "Success is not final, failure is not fatal: it is the courage to continue that counts.";
+    }
+
+    int count = (Integer) seatSpinner.getValue();
+    prepareCustomizePanel(count);
+    cardLayout.show(mainContainer, "CUSTOMIZE");
+});
         panel.add(nextBtn, BorderLayout.SOUTH);
 
         return panel;
     }
 
-
     private JPanel createRacePanel() {
+        // Layout for the active race visualization screen
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(223, 230, 233));
 
@@ -101,7 +129,7 @@ private JPanel createConfigPanel() {
         title.setFont(new Font("Arial", Font.BOLD, 24));
         panel.add(title, BorderLayout.NORTH);
 
-
+        // Finish button to jump to stats
         JButton finishBtn = new JButton("FINISH RACE & SHOW STATS >>");
         finishBtn.setFont(new Font("Arial", Font.BOLD, 20));
         finishBtn.addActionListener(e -> cardLayout.show(mainContainer, "STATS"));
@@ -110,8 +138,8 @@ private JPanel createConfigPanel() {
         return panel;
     }
 
-
     private JPanel createStatsPanel() {
+        // Analytics and results screen
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(9, 132, 227));
 
@@ -120,7 +148,7 @@ private JPanel createConfigPanel() {
         title.setFont(new Font("Arial", Font.BOLD, 24));
         panel.add(title, BorderLayout.NORTH);
 
-    
+        // Button to restart and go back to configuration
         JButton restartBtn = new JButton("<< SETUP NEW RACE");
         restartBtn.setFont(new Font("Arial", Font.BOLD, 20));
         restartBtn.addActionListener(e -> cardLayout.show(mainContainer, "CONFIG"));
@@ -130,11 +158,13 @@ private JPanel createConfigPanel() {
     }
 
     private void prepareCustomizePanel(int count) {
+       
         customizePanel.removeAll();
         
         JPanel container = new JPanel(new GridLayout(1, count, 10, 10));
         container.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
+        // Create individual settings block for each typist
         for (int i = 1; i <= count; i++) {
             JPanel p = new JPanel();
             p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
@@ -167,16 +197,90 @@ private JPanel createConfigPanel() {
         customizePanel.add(new JLabel("Step 2: Personalize Your Typists", SwingConstants.CENTER), BorderLayout.NORTH);
         customizePanel.add(new JScrollPane(container), BorderLayout.CENTER);
 
+        // Button to finalize data and start the race
         JButton startRaceBtn = new JButton("START LIVE RACE! >>");
-        startRaceBtn.addActionListener(e -> cardLayout.show(mainContainer, "RACE"));
+        startRaceBtn.addActionListener(e -> {
+            collectTypistData(count, container);
+            setupRaceScreen();
+            cardLayout.show(mainContainer, "RACE"); 
+            startRaceAnimation();
+        });
         customizePanel.add(startRaceBtn, BorderLayout.SOUTH);
 
         customizePanel.revalidate();
         customizePanel.repaint();
     }
 
+    private void collectTypistData(int count, JPanel container) {
+        // Harvests user input from customization panels and creates Typist objects
+        activeTypists.clear();
+        Component[] typistPanels = container.getComponents();
+
+        for (int i = 0; i < count; i++) {
+            JPanel p = (JPanel) typistPanels[i];
+            
+            String colorStr = (String) ((JComboBox<?>) p.getComponent(1)).getSelectedItem();
+            String style = (String) ((JComboBox<?>) p.getComponent(3)).getSelectedItem();
+            String kb = (String) ((JComboBox<?>) p.getComponent(5)).getSelectedItem();
+            String acc = (String) ((JComboBox<?>) p.getComponent(7)).getSelectedItem();
+            String sym = ((JTextField) p.getComponent(9)).getText();
+            
+            char symbolChar = sym.isEmpty() ? '?' : sym.charAt(0);
+
+            Typist t = new Typist(symbolChar, "Player " + (i+1), 0.7); 
+            t.setTypingStyle(style);
+            t.setKeyboardType(kb);
+            t.setAccessory(acc);
+            
+            // Assign actual Color object based on selection
+            if ("Red".equals(colorStr)) t.setColor(Color.RED);
+            else if ("Blue".equals(colorStr)) t.setColor(Color.BLUE);
+            else if ("Green".equals(colorStr)) t.setColor(Color.GREEN);
+            else t.setColor(Color.ORANGE);
+
+            activeTypists.add(t);
+        }
+    }
+
+    private void setupRaceScreen() {
+        // Clears race panel and draws progress bars based on active typists
+        racePanel.removeAll(); 
+        racePanel.setLayout(new BorderLayout(10, 10));
+
+        // Display area for the text to be typed
+        passageArea = new JTextPane();
+        passageArea.setEditable(false);
+        passageArea.setFont(new Font("Monospaced", Font.BOLD, 20));
+        passageArea.setText(currentPassage);
+        passageArea.setBorder(BorderFactory.createTitledBorder("Type the following:"));
+        racePanel.add(new JScrollPane(passageArea), BorderLayout.NORTH);
+
+        // Create individual progress bar rows
+        progressContainer = new JPanel(new GridLayout(activeTypists.size(), 1, 5, 5));
+        for (Typist t : activeTypists) {
+            JPanel typistRow = new JPanel(new BorderLayout());
+            JLabel nameLabel = new JLabel(t.getName() + " [" + t.getSymbol() + "] ");
+            
+            JProgressBar bar = new JProgressBar(0, currentPassage.length());
+            bar.setValue(0);
+            bar.setStringPainted(true);
+            bar.setForeground(t.getColor());
+            
+            typistRow.add(nameLabel, BorderLayout.WEST);
+            typistRow.add(bar, BorderLayout.CENTER);
+            progressContainer.add(typistRow);
+        }
+        racePanel.add(progressContainer, BorderLayout.CENTER);
+
+        racePanel.revalidate();
+    }
+    
+    private void startRaceAnimation() {
+
+    }
+
     public static void main(String[] args) {
-      
+
         SwingUtilities.invokeLater(() -> {
             new TypingRaceGUI().setVisible(true);
         });
