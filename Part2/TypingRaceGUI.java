@@ -5,6 +5,8 @@ public class TypingRaceGUI extends JFrame {
 
     private CardLayout cardLayout;
     private JPanel mainContainer;
+    private JPanel customizePanel;
+    private JSpinner seatSpinner;
 
     public TypingRaceGUI() {
         setTitle("Typing Race Simulator - Ultimate Edition");
@@ -20,9 +22,11 @@ public class TypingRaceGUI extends JFrame {
         JPanel configPanel = createConfigPanel();
         JPanel racePanel = createRacePanel();
         JPanel statsPanel = createStatsPanel();
+        customizePanel = new JPanel(new BorderLayout());
 
    
         mainContainer.add(configPanel, "CONFIG");
+        mainContainer.add(customizePanel, "CUSTOMIZE");
         mainContainer.add(racePanel, "RACE");
         mainContainer.add(statsPanel, "STATS");
 
@@ -33,7 +37,7 @@ public class TypingRaceGUI extends JFrame {
     }
 
 
-    private JPanel createConfigPanel() {
+private JPanel createConfigPanel() {
         JPanel panel = new JPanel(new BorderLayout(20, 20));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 40, 20, 40));
 
@@ -44,59 +48,45 @@ public class TypingRaceGUI extends JFrame {
         JPanel settingsPanel = new JPanel();
         settingsPanel.setLayout(new BoxLayout(settingsPanel, BoxLayout.Y_AXIS));
 
-        // Passage Selection and Custom Text
+        // Passage Section
         JPanel passagePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         passagePanel.add(new JLabel("Passage Length/Type: "));
         JComboBox<String> passageBox = new JComboBox<>(new String[]{"Short Passage", "Medium Passage", "Long Passage", "Custom Text..."});
         passagePanel.add(passageBox);
-        
-        JTextField customTextField = new JTextField(25);
-        customTextField.setEnabled(false); 
+        JTextField customTextField = new JTextField(20);
+        customTextField.setEnabled(false);
         passagePanel.add(customTextField);
-
-        passageBox.addActionListener(e -> {
-            if ("Custom Text...".equals(passageBox.getSelectedItem())) {
-                customTextField.setEnabled(true);
-                customTextField.requestFocus();
-            } else {
-                customTextField.setEnabled(false);
-                customTextField.setText("");
-            }
-        });
+        passageBox.addActionListener(e -> customTextField.setEnabled("Custom Text...".equals(passageBox.getSelectedItem())));
         settingsPanel.add(passagePanel);
 
-        // Seat Count
+        // Seat Count 
         JPanel seatPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         seatPanel.add(new JLabel("Number of Typists (2-6): "));
-        JSpinner seatSpinner = new JSpinner(new SpinnerNumberModel(2, 2, 6, 1));
-        
+        seatSpinner = new JSpinner(new SpinnerNumberModel(2, 2, 6, 1));
         ((JSpinner.DefaultEditor) seatSpinner.getEditor()).getTextField().setEditable(false);
         seatPanel.add(seatSpinner);
         settingsPanel.add(seatPanel);
 
-        // Difficulty Modifiers
-        JPanel modifiersPanelWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JPanel modifiersPanel = new JPanel(new GridLayout(3, 1, 5, 5));
-        modifiersPanel.setBorder(BorderFactory.createTitledBorder("Modifiers"));
-        
-        JCheckBox autocorrectCheck = new JCheckBox("Autocorrect (Slideback halved)");
-        JCheckBox caffeineCheck = new JCheckBox("Caffeine Mode (Speed boost, high burnout)");
-        JCheckBox nightShiftCheck = new JCheckBox("Night Shift (Lower Accuracy)");
-        
-        modifiersPanel.add(autocorrectCheck);
-        modifiersPanel.add(caffeineCheck);
-        modifiersPanel.add(nightShiftCheck);
-        modifiersPanelWrapper.add(modifiersPanel);
-        
-        settingsPanel.add(modifiersPanelWrapper);
+        // Modifiers
+        JPanel modWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel modPanel = new JPanel(new GridLayout(3, 1, 5, 5));
+        modPanel.setBorder(BorderFactory.createTitledBorder("Modifiers"));
+        modPanel.add(new JCheckBox("Autocorrect (Slideback halved)"));
+        modPanel.add(new JCheckBox("Caffeine Mode (Speed boost, high burnout)"));
+        modPanel.add(new JCheckBox("Night Shift (Lower Accuracy)"));
+        modWrapper.add(modPanel);
+        settingsPanel.add(modWrapper);
 
         panel.add(settingsPanel, BorderLayout.CENTER);
 
         JButton nextBtn = new JButton("Next: Customize Typists >>");
+        nextBtn.setPreferredSize(new Dimension(0, 50));
         nextBtn.setFont(new Font("Arial", Font.BOLD, 18));
-
-        // For test
-        nextBtn.addActionListener(e -> cardLayout.show(mainContainer, "RACE")); 
+        nextBtn.addActionListener(e -> {
+            int count = (Integer) seatSpinner.getValue();
+            prepareCustomizePanel(count);
+            cardLayout.show(mainContainer, "CUSTOMIZE");
+        });
         panel.add(nextBtn, BorderLayout.SOUTH);
 
         return panel;
@@ -137,6 +127,52 @@ public class TypingRaceGUI extends JFrame {
         panel.add(restartBtn, BorderLayout.SOUTH);
 
         return panel;
+    }
+
+    private void prepareCustomizePanel(int count) {
+        customizePanel.removeAll();
+        
+        JPanel container = new JPanel(new GridLayout(1, count, 10, 10));
+        container.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        for (int i = 1; i <= count; i++) {
+            JPanel p = new JPanel();
+            p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+            p.setBorder(BorderFactory.createTitledBorder("Typist #" + i));
+
+            p.add(new JLabel("Color:"));
+            JComboBox<String> colorBox = new JComboBox<>(new String[]{"Red", "Blue", "Green", "Yellow", "Magenta"});
+            p.add(colorBox);
+
+            p.add(new JLabel("Typing Style:"));
+            JComboBox<String> styleBox = new JComboBox<>(new String[]{"Touch Typist", "Hunt & Peck", "Phone Thumbs", "Voice-to-Text"});
+            p.add(styleBox);
+
+            p.add(new JLabel("Keyboard:"));
+            JComboBox<String> kbBox = new JComboBox<>(new String[]{"Mechanical", "Membrane", "Touchscreen", "Stenography"});
+            p.add(kbBox);
+
+            p.add(new JLabel("Accessories:"));
+            JComboBox<String> accBox = new JComboBox<>(new String[]{"None", "Wrist Support", "Energy Drink", "Noise-Cancelling Headphones"});
+            p.add(accBox);
+
+            p.add(new JLabel("Symbol (Emoji/Char):"));
+            JTextField symField = new JTextField("①");
+            symField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+            p.add(symField);
+
+            container.add(p);
+        }
+
+        customizePanel.add(new JLabel("Step 2: Personalize Your Typists", SwingConstants.CENTER), BorderLayout.NORTH);
+        customizePanel.add(new JScrollPane(container), BorderLayout.CENTER);
+
+        JButton startRaceBtn = new JButton("START LIVE RACE! >>");
+        startRaceBtn.addActionListener(e -> cardLayout.show(mainContainer, "RACE"));
+        customizePanel.add(startRaceBtn, BorderLayout.SOUTH);
+
+        customizePanel.revalidate();
+        customizePanel.repaint();
     }
 
     public static void main(String[] args) {
