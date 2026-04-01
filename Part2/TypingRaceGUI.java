@@ -1,5 +1,6 @@
 import java.awt.*;
 import javax.swing.*;
+// TODO: COLOURS, HIGHLIGHTING
 
 public class TypingRaceGUI extends JFrame {
 
@@ -9,6 +10,11 @@ public class TypingRaceGUI extends JFrame {
     private JPanel customizePanel;
     private JPanel racePanel;
     private JSpinner seatSpinner;
+
+    // Global Modifiers (Moved here to fix the "cannot find symbol" error)
+    private JCheckBox autocorrectCheck;
+    private JCheckBox caffeineCheck;
+    private JCheckBox nightShiftCheck;
 
     // Simulation data
     private java.util.List<Typist> activeTypists = new java.util.ArrayList<>();
@@ -83,9 +89,16 @@ public class TypingRaceGUI extends JFrame {
         JPanel modWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JPanel modPanel = new JPanel(new GridLayout(3, 1, 5, 5));
         modPanel.setBorder(BorderFactory.createTitledBorder("Modifiers"));
-        modPanel.add(new JCheckBox("Autocorrect (Slideback halved)"));
-        modPanel.add(new JCheckBox("Caffeine Mode (Speed boost, high burnout)"));
-        modPanel.add(new JCheckBox("Night Shift (Lower Accuracy)"));
+        
+        // FIXED: Initialized the class-level variables instead of creating anonymous ones
+        autocorrectCheck = new JCheckBox("Autocorrect (Slideback halved)");
+        caffeineCheck = new JCheckBox("Caffeine Mode (Speed boost, high burnout)");
+        nightShiftCheck = new JCheckBox("Night Shift (Lower Accuracy)");
+        
+        modPanel.add(autocorrectCheck);
+        modPanel.add(caffeineCheck);
+        modPanel.add(nightShiftCheck);
+        
         modWrapper.add(modPanel);
         settingsPanel.add(modWrapper);
 
@@ -96,25 +109,25 @@ public class TypingRaceGUI extends JFrame {
         nextBtn.setPreferredSize(new Dimension(0, 50));
         nextBtn.setFont(new Font("Arial", Font.BOLD, 18));
         nextBtn.addActionListener(e -> {
-    // Check if Custom Text is selected
-    if ("Custom Text...".equals(passageBox.getSelectedItem())) {
-        String userText = customTextField.getText().trim();
-        if (userText.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter some custom text!");
-            return;
-        }
-        currentPassage = userText; // Update the race text
-    } else {
-        String selected = (String) passageBox.getSelectedItem();
-        if ("Short Passage".equals(selected)) currentPassage = "The quick brown fox.";
-        else if ("Medium Passage".equals(selected)) currentPassage = "The quick brown fox jumps over the lazy dog.";
-        else if ("Long Passage".equals(selected)) currentPassage = "Success is not final, failure is not fatal: it is the courage to continue that counts.";
-    }
+            // Check if Custom Text is selected
+            if ("Custom Text...".equals(passageBox.getSelectedItem())) {
+                String userText = customTextField.getText().trim();
+                if (userText.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Please enter some custom text!");
+                    return;
+                }
+                currentPassage = userText; // Update the race text
+            } else {
+                String selected = (String) passageBox.getSelectedItem();
+                if ("Short Passage".equals(selected)) currentPassage = "The quick brown fox.";
+                else if ("Medium Passage".equals(selected)) currentPassage = "The quick brown fox jumps over the lazy dog.";
+                else if ("Long Passage".equals(selected)) currentPassage = "Success is not final, failure is not fatal: it is the courage to continue that counts.";
+            }
 
-    int count = (Integer) seatSpinner.getValue();
-    prepareCustomizePanel(count);
-    cardLayout.show(mainContainer, "CUSTOMIZE");
-});
+            int count = (Integer) seatSpinner.getValue();
+            prepareCustomizePanel(count);
+            cardLayout.show(mainContainer, "CUSTOMIZE");
+        });
         panel.add(nextBtn, BorderLayout.SOUTH);
 
         return panel;
@@ -276,49 +289,103 @@ public class TypingRaceGUI extends JFrame {
     }
     
     private void startRaceAnimation() {
-        // Create a timer that fires every 100ms
+        // Start a timer that runs every 100ms
         Timer raceTimer = new Timer(100, null);
+        int[] turnCount = {0}; 
         
+        // Read global settings once at start
+        boolean isAutocorrect = autocorrectCheck.isSelected();
+        boolean isCaffeine = caffeineCheck.isSelected();
+        boolean isNightShift = nightShiftCheck.isSelected();
+
         raceTimer.addActionListener(e -> {
             boolean raceOver = false;
             Typist winner = null;
+            turnCount[0]++; // Increase turn count
 
             for (int i = 0; i < activeTypists.size(); i++) {
                 Typist t = activeTypists.get(i);
                 
-                // Simulation Logic: Only advance if not burnt out
-                if (!t.isBurntOut()) {
-                    // Random move based on accuracy
-                    if (Math.random() < t.getAccuracy()) {
-                        t.typeCharacter();
-                    } else {
-                        // Small chance to slip back
-                        t.slideBack(1); 
-                    }
-                    
-                    // Small chance to burn out for higher speeds
-                    if (Math.random() < 0.02) { // 2% chance per tick
-                        t.burnOut(3);
-                    }
-                } else {
-                    t.recoverFromBurnout();
+                // 1. SET BASE VALUES
+                double currentAcc = t.getAccuracy(); // Base accuracy (0.7)
+                int speed = 1;                       // How many steps per move
+                double burnoutChance = 0.02;         // Chance to get tired
+                int restTime = 3;                    // How many turns to rest
+                int penalty = 2;                     // Steps to go back on error
+
+                // 2. APPLY GLOBAL MODIFIERS
+                if (isNightShift) currentAcc -= 0.10; // Tired people miss more
+                if (isAutocorrect) penalty = 1;       // Fixes help reduce penalty
+                if (isCaffeine) {
+                    if (turnCount[0] <= 10) speed += 1; // Fast start
+                    else burnoutChance += 0.06;         // Crash later
                 }
 
-                // Update Progress Bars
+                // 3. APPLY TYPING STYLE
+                switch (t.getTypingStyle()) {
+                    case "Touch Typist": currentAcc += 0.15; break;
+                    case "Hunt & Peck":  currentAcc -= 0.15; break;
+                    case "Phone Thumbs": burnoutChance += 0.03; break;
+                    case "Voice-to-Text": 
+                        currentAcc += 0.05; 
+                        penalty += 2; // Big penalty for voice errors
+                        break;
+                }
+
+                // 4. APPLY KEYBOARD TYPE
+                switch (t.getKeyboardType()) {
+                    case "Mechanical":  currentAcc += 0.05; break;
+                    case "Touchscreen": currentAcc -= 0.10; break;
+                    case "Stenography": 
+                        speed += 1;      // Very fast
+                        currentAcc -= 0.20; // Very hard to use
+                        break;
+                }
+
+                // 5. APPLY ACCESSORIES
+                switch (t.getAccessory()) {
+                    case "Wrist Support": restTime = 1; break; // Fast recovery
+                    case "Noise-Cancelling Headphones": currentAcc += 0.10; break;
+                    case "Energy Drink":
+                        // Good in first half, bad in second half
+                        if (t.getProgress() < (currentPassage.length() / 2)) currentAcc += 0.15;
+                        else currentAcc -= 0.20;
+                        break;
+                }
+
+                // Keep accuracy between 5% and 95%
+                currentAcc = Math.max(0.05, Math.min(currentAcc, 0.95));
+
+                // 6. MOVE LOGIC
+                if (!t.isBurntOut()) {
+                    for (int s = 0; s < speed; s++) {
+                        if (Math.random() < currentAcc) {
+                            t.typeCharacter(); // Success move
+                        } else {
+                            t.slideBack(penalty); // Error move
+                        }
+                    }
+                    // Check for burnout
+                    if (Math.random() < burnoutChance) t.burnOut(restTime);
+                } else {
+                    t.recoverFromBurnout(); // Is resting
+                }
+
+                // 7. UPDATE SCREEN
                 JPanel row = (JPanel) progressContainer.getComponent(i);
                 JProgressBar bar = (JProgressBar) row.getComponent(1);
                 bar.setValue(t.getProgress());
                 
-                // Check if anyone finished
+                // Check for winner
                 if (t.getProgress() >= currentPassage.length()) {
                     raceOver = true;
-                    winner = t;
+                    if (winner == null) winner = t;
                 }
             }
 
-            // Highlight text based on the Leading typist's progress
-            updateTextHighlighting();
+            updateTextHighlighting(); // Blue color for text
 
+            // If race ends, stop timer and go to stats
             if (raceOver) {
                 ((Timer)e.getSource()).stop();
                 JOptionPane.showMessageDialog(this, "Race Finished! Winner: " + winner.getName());
