@@ -276,7 +276,77 @@ public class TypingRaceGUI extends JFrame {
     }
     
     private void startRaceAnimation() {
+        // Create a timer that fires every 100ms
+        Timer raceTimer = new Timer(100, null);
+        
+        raceTimer.addActionListener(e -> {
+            boolean raceOver = false;
+            Typist winner = null;
 
+            for (int i = 0; i < activeTypists.size(); i++) {
+                Typist t = activeTypists.get(i);
+                
+                // Simulation Logic: Only advance if not burnt out
+                if (!t.isBurntOut()) {
+                    // Random move based on accuracy
+                    if (Math.random() < t.getAccuracy()) {
+                        t.typeCharacter();
+                    } else {
+                        // Small chance to slip back
+                        t.slideBack(1); 
+                    }
+                    
+                    // Small chance to burn out for higher speeds
+                    if (Math.random() < 0.02) { // 2% chance per tick
+                        t.burnOut(3);
+                    }
+                } else {
+                    t.recoverFromBurnout();
+                }
+
+                // Update Progress Bars
+                JPanel row = (JPanel) progressContainer.getComponent(i);
+                JProgressBar bar = (JProgressBar) row.getComponent(1);
+                bar.setValue(t.getProgress());
+                
+                // Check if anyone finished
+                if (t.getProgress() >= currentPassage.length()) {
+                    raceOver = true;
+                    winner = t;
+                }
+            }
+
+            // Highlight text based on the Leading typist's progress
+            updateTextHighlighting();
+
+            if (raceOver) {
+                ((Timer)e.getSource()).stop();
+                JOptionPane.showMessageDialog(this, "Race Finished! Winner: " + winner.getName());
+                cardLayout.show(mainContainer, "STATS");
+            }
+        });
+
+        raceTimer.start();
+    }
+
+    // Helper method to highlight completed characters in the text pane
+    private void updateTextHighlighting() {
+        // Find max progress among all typists
+        int maxProgress = 0;
+        for (Typist t : activeTypists) {
+            maxProgress = Math.max(maxProgress, t.getProgress());
+        }
+        
+        // Ensure don't exceed text length
+        maxProgress = Math.min(maxProgress, currentPassage.length());
+
+        try {
+            passageArea.setSelectionStart(0);
+            passageArea.setSelectionEnd(maxProgress);
+            passageArea.setSelectionColor(new Color(173, 216, 230, 100));
+        } catch (Exception ex) {
+            // Ignore highlighting errors
+        }
     }
 
     public static void main(String[] args) {
