@@ -1,6 +1,5 @@
 import java.awt.*;
 import javax.swing.*;
-// TODO: COLOURS, HIGHLIGHTING
 
 public class TypingRaceGUI extends JFrame {
 
@@ -11,14 +10,15 @@ public class TypingRaceGUI extends JFrame {
     private JPanel racePanel;
     private JSpinner seatSpinner;
 
-    // Global Modifiers (Moved here to fix the "cannot find symbol" error)
+    // Global Modifiers
     private JCheckBox autocorrectCheck;
     private JCheckBox caffeineCheck;
     private JCheckBox nightShiftCheck;
 
-    // Simulation data
+    // Simulation data and UI components for the race
     private java.util.List<Typist> activeTypists = new java.util.ArrayList<>();
-    private JTextPane passageArea; 
+    private java.util.List<JTextPane> typistTextPanes = new java.util.ArrayList<>();
+    private java.util.List<JProgressBar> progressBars = new java.util.ArrayList<>();
     private JPanel progressContainer;
     private String currentPassage = "The quick brown fox jumps over the lazy dog.";
 
@@ -90,7 +90,6 @@ public class TypingRaceGUI extends JFrame {
         JPanel modPanel = new JPanel(new GridLayout(3, 1, 5, 5));
         modPanel.setBorder(BorderFactory.createTitledBorder("Modifiers"));
         
-        // FIXED: Initialized the class-level variables instead of creating anonymous ones
         autocorrectCheck = new JCheckBox("Autocorrect (Slideback halved)");
         caffeineCheck = new JCheckBox("Caffeine Mode (Speed boost, high burnout)");
         nightShiftCheck = new JCheckBox("Night Shift (Lower Accuracy)");
@@ -225,7 +224,6 @@ public class TypingRaceGUI extends JFrame {
     }
 
     private void collectTypistData(int count, JPanel container) {
-        // Harvests user input from customization panels and creates Typist objects
         activeTypists.clear();
         Component[] typistPanels = container.getComponents();
 
@@ -245,10 +243,11 @@ public class TypingRaceGUI extends JFrame {
             t.setKeyboardType(kb);
             t.setAccessory(acc);
             
-            // Assign actual Color object based on selection
             if ("Red".equals(colorStr)) t.setColor(Color.RED);
             else if ("Blue".equals(colorStr)) t.setColor(Color.BLUE);
             else if ("Green".equals(colorStr)) t.setColor(Color.GREEN);
+            else if ("Yellow".equals(colorStr)) t.setColor(Color.YELLOW);
+            else if ("Magenta".equals(colorStr)) t.setColor(Color.MAGENTA);
             else t.setColor(Color.ORANGE);
 
             activeTypists.add(t);
@@ -256,44 +255,66 @@ public class TypingRaceGUI extends JFrame {
     }
 
     private void setupRaceScreen() {
-        // Clears race panel and draws progress bars based on active typists
         racePanel.removeAll(); 
         racePanel.setLayout(new BorderLayout(10, 10));
 
-        // Display area for the text to be typed
-        passageArea = new JTextPane();
-        passageArea.setEditable(false);
-        passageArea.setFont(new Font("Monospaced", Font.BOLD, 20));
-        passageArea.setText(currentPassage);
-        passageArea.setBorder(BorderFactory.createTitledBorder("Type the following:"));
-        racePanel.add(new JScrollPane(passageArea), BorderLayout.NORTH);
+        JLabel title = new JLabel("Step 2: LIVE RACE", SwingConstants.CENTER);
+        title.setFont(new Font("Arial", Font.BOLD, 24));
+        racePanel.add(title, BorderLayout.NORTH);
 
-        // Create individual progress bar rows
-        progressContainer = new JPanel(new GridLayout(activeTypists.size(), 1, 5, 5));
+        typistTextPanes.clear();
+        progressBars.clear();
+        
+        progressContainer = new JPanel(new GridLayout(activeTypists.size(), 1, 10, 10));
+        
         for (Typist t : activeTypists) {
-            JPanel typistRow = new JPanel(new BorderLayout());
-            JLabel nameLabel = new JLabel(t.getName() + " [" + t.getSymbol() + "] ");
+            // Create a row for each typist
+            JPanel typistRow = new JPanel(new BorderLayout(10, 10));
+            typistRow.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+            ));
             
+            // Left Side: Name and Symbol
+            JLabel nameLabel = new JLabel(t.getName() + " [" + t.getSymbol() + "] ");
+            nameLabel.setFont(new Font("Arial", Font.BOLD, 14));
+            nameLabel.setPreferredSize(new Dimension(150, 30));
+            
+            // Center: Individual Text Pane (TypeRacer style)
+            JTextPane textPane = new JTextPane();
+            textPane.setEditable(false);
+            textPane.setFont(new Font("Monospaced", Font.BOLD, 16));
+            textPane.setText(currentPassage);
+            typistTextPanes.add(textPane); // Save to list to update later
+            
+            // Bottom: Progress Bar
             JProgressBar bar = new JProgressBar(0, currentPassage.length());
             bar.setValue(0);
             bar.setStringPainted(true);
             bar.setForeground(t.getColor());
             
+            bar.setUI(new javax.swing.plaf.basic.BasicProgressBarUI());
+            progressBars.add(bar); // Save to list to update later
+            
+            JPanel centerP = new JPanel(new BorderLayout(0, 5));
+            centerP.add(new JScrollPane(textPane), BorderLayout.CENTER);
+            centerP.add(bar, BorderLayout.SOUTH);
+            
             typistRow.add(nameLabel, BorderLayout.WEST);
-            typistRow.add(bar, BorderLayout.CENTER);
+            typistRow.add(centerP, BorderLayout.CENTER);
+            
             progressContainer.add(typistRow);
         }
-        racePanel.add(progressContainer, BorderLayout.CENTER);
-
+        
+        racePanel.add(new JScrollPane(progressContainer), BorderLayout.CENTER);
         racePanel.revalidate();
+        racePanel.repaint();
     }
     
     private void startRaceAnimation() {
-        // Start a timer that runs every 100ms
         Timer raceTimer = new Timer(100, null);
         int[] turnCount = {0}; 
         
-        // Read global settings once at start
         boolean isAutocorrect = autocorrectCheck.isSelected();
         boolean isCaffeine = caffeineCheck.isSelected();
         boolean isNightShift = nightShiftCheck.isSelected();
@@ -301,24 +322,24 @@ public class TypingRaceGUI extends JFrame {
         raceTimer.addActionListener(e -> {
             boolean raceOver = false;
             Typist winner = null;
-            turnCount[0]++; // Increase turn count
+            turnCount[0]++; 
 
             for (int i = 0; i < activeTypists.size(); i++) {
                 Typist t = activeTypists.get(i);
                 
                 // 1. SET BASE VALUES
-                double currentAcc = t.getAccuracy(); // Base accuracy (0.7)
-                int speed = 1;                       // How many steps per move
-                double burnoutChance = 0.02;         // Chance to get tired
-                int restTime = 3;                    // How many turns to rest
-                int penalty = 2;                     // Steps to go back on error
+                double currentAcc = t.getAccuracy(); 
+                int speed = 1;                       
+                double burnoutChance = 0.02;         
+                int restTime = 3;                    
+                int penalty = 2;                     
 
                 // 2. APPLY GLOBAL MODIFIERS
-                if (isNightShift) currentAcc -= 0.10; // Tired people miss more
-                if (isAutocorrect) penalty = 1;       // Fixes help reduce penalty
+                if (isNightShift) currentAcc -= 0.10; 
+                if (isAutocorrect) penalty = 1;       
                 if (isCaffeine) {
-                    if (turnCount[0] <= 10) speed += 1; // Fast start
-                    else burnoutChance += 0.06;         // Crash later
+                    if (turnCount[0] <= 10) speed += 1; 
+                    else burnoutChance += 0.06;         
                 }
 
                 // 3. APPLY TYPING STYLE
@@ -328,7 +349,7 @@ public class TypingRaceGUI extends JFrame {
                     case "Phone Thumbs": burnoutChance += 0.03; break;
                     case "Voice-to-Text": 
                         currentAcc += 0.05; 
-                        penalty += 2; // Big penalty for voice errors
+                        penalty += 2; 
                         break;
                 }
 
@@ -337,55 +358,47 @@ public class TypingRaceGUI extends JFrame {
                     case "Mechanical":  currentAcc += 0.05; break;
                     case "Touchscreen": currentAcc -= 0.10; break;
                     case "Stenography": 
-                        speed += 1;      // Very fast
-                        currentAcc -= 0.20; // Very hard to use
+                        speed += 1;      
+                        currentAcc -= 0.20; 
                         break;
                 }
 
                 // 5. APPLY ACCESSORIES
                 switch (t.getAccessory()) {
-                    case "Wrist Support": restTime = 1; break; // Fast recovery
+                    case "Wrist Support": restTime = 1; break; 
                     case "Noise-Cancelling Headphones": currentAcc += 0.10; break;
                     case "Energy Drink":
-                        // Good in first half, bad in second half
                         if (t.getProgress() < (currentPassage.length() / 2)) currentAcc += 0.15;
                         else currentAcc -= 0.20;
                         break;
                 }
 
-                // Keep accuracy between 5% and 95%
                 currentAcc = Math.max(0.05, Math.min(currentAcc, 0.95));
 
                 // 6. MOVE LOGIC
                 if (!t.isBurntOut()) {
                     for (int s = 0; s < speed; s++) {
                         if (Math.random() < currentAcc) {
-                            t.typeCharacter(); // Success move
+                            t.typeCharacter(); 
                         } else {
-                            t.slideBack(penalty); // Error move
+                            t.slideBack(penalty); 
                         }
                     }
-                    // Check for burnout
                     if (Math.random() < burnoutChance) t.burnOut(restTime);
                 } else {
-                    t.recoverFromBurnout(); // Is resting
+                    t.recoverFromBurnout(); 
                 }
 
-                // 7. UPDATE SCREEN
-                JPanel row = (JPanel) progressContainer.getComponent(i);
-                JProgressBar bar = (JProgressBar) row.getComponent(1);
-                bar.setValue(t.getProgress());
+                // 7. UPDATE SCREEN (Progress bar + Text Highlighting)
+                progressBars.get(i).setValue(t.getProgress());
+                updateTypistText(typistTextPanes.get(i), t.getProgress(), t.getColor());
                 
-                // Check for winner
                 if (t.getProgress() >= currentPassage.length()) {
                     raceOver = true;
                     if (winner == null) winner = t;
                 }
             }
 
-            updateTextHighlighting(); // Blue color for text
-
-            // If race ends, stop timer and go to stats
             if (raceOver) {
                 ((Timer)e.getSource()).stop();
                 JOptionPane.showMessageDialog(this, "Race Finished! Winner: " + winner.getName());
@@ -396,28 +409,28 @@ public class TypingRaceGUI extends JFrame {
         raceTimer.start();
     }
 
-    // Helper method to highlight completed characters in the text pane
-    private void updateTextHighlighting() {
-        // Find max progress among all typists
-        int maxProgress = 0;
-        for (Typist t : activeTypists) {
-            maxProgress = Math.max(maxProgress, t.getProgress());
-        }
+    private void updateTypistText(JTextPane pane, int progress, Color color) {
+        javax.swing.text.StyledDocument doc = pane.getStyledDocument();
+        int len = doc.getLength();
+        if (progress > len) progress = len;
         
-        // Ensure don't exceed text length
-        maxProgress = Math.min(maxProgress, currentPassage.length());
+        Color safeColor = (color == Color.YELLOW) ? new Color(204, 204, 0) : color;
+        
+        // Style for text that has already been typed (Colored and Bold)
+        javax.swing.text.Style completedStyle = pane.addStyle("Completed", null);
+        javax.swing.text.StyleConstants.setForeground(completedStyle, safeColor);
+        javax.swing.text.StyleConstants.setBold(completedStyle, true);
 
-        try {
-            passageArea.setSelectionStart(0);
-            passageArea.setSelectionEnd(maxProgress);
-            passageArea.setSelectionColor(new Color(173, 216, 230, 100));
-        } catch (Exception ex) {
-            // Ignore highlighting errors
-        }
+        // Style for text waiting to be typed (Gray and Normal)
+        javax.swing.text.Style pendingStyle = pane.addStyle("Pending", null);
+        javax.swing.text.StyleConstants.setForeground(pendingStyle, Color.GRAY);
+        javax.swing.text.StyleConstants.setBold(pendingStyle, false);
+
+        doc.setCharacterAttributes(0, progress, completedStyle, true);
+        doc.setCharacterAttributes(progress, len - progress, pendingStyle, true);
     }
 
     public static void main(String[] args) {
-
         SwingUtilities.invokeLater(() -> {
             new TypingRaceGUI().setVisible(true);
         });
