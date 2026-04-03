@@ -22,6 +22,21 @@ public class TypingRaceGUI extends JFrame {
     private JPanel progressContainer;
     private String currentPassage = "The quick brown fox jumps over the lazy dog.";
 
+    // Statisctics
+    private long startTime;
+    private JPanel statsContentPanel; 
+    private java.util.Map<String, java.util.List<RaceRecord>> raceHistory = new java.util.HashMap<>();
+
+    // Inner class to store past race records
+    class RaceRecord {
+        int wpm;
+        double accuracy;
+        int burnouts;
+        public RaceRecord(int wpm, double accuracy, int burnouts) {
+            this.wpm = wpm; this.accuracy = accuracy; this.burnouts = burnouts;
+        }
+    }
+
     public TypingRaceGUI() {
         // Main window configuration
         setTitle("Typing Race Simulator - Ultimate Edition");
@@ -156,14 +171,18 @@ public class TypingRaceGUI extends JFrame {
     }
 
     private JPanel createStatsPanel() {
-        // Analytics and results screen
+        // Analytics and results screen base
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(new Color(9, 132, 227));
 
-        JLabel title = new JLabel("Step 3: Post-Race Analytics (WPM & Accuracy)", SwingConstants.CENTER);
+        JLabel title = new JLabel("Step 3: Post-Race Analytics", SwingConstants.CENTER);
         title.setForeground(Color.WHITE);
         title.setFont(new Font("Arial", Font.BOLD, 24));
         panel.add(title, BorderLayout.NORTH);
+
+        // Dynamic content panel for tabs
+        statsContentPanel = new JPanel(new BorderLayout());
+        panel.add(statsContentPanel, BorderLayout.CENTER);
 
         // Button to restart and go back to configuration
         JButton restartBtn = new JButton("<< SETUP NEW RACE");
@@ -222,8 +241,16 @@ public class TypingRaceGUI extends JFrame {
         JButton startRaceBtn = new JButton("START LIVE RACE! >>");
         startRaceBtn.addActionListener(e -> {
             collectTypistData(count, container);
+            
+            // Reset typists before the race starts to clear previous stats
+            for(Typist t : activeTypists) {
+                t.resetToStart(); 
+            }
+            
             setupRaceScreen();
             cardLayout.show(mainContainer, "RACE"); 
+            
+            startTime = System.currentTimeMillis(); // Start timer for WPM
             startRaceAnimation();
         });
         customizePanel.add(startRaceBtn, BorderLayout.SOUTH);
@@ -410,6 +437,11 @@ public class TypingRaceGUI extends JFrame {
 
             if (raceOver) {
                 ((Timer)e.getSource()).stop();
+                
+                // Calculate time and generate stats view
+                long timeTakenMs = System.currentTimeMillis() - startTime;
+                generateStatsView(timeTakenMs);
+                
                 JOptionPane.showMessageDialog(this, "Race Finished! Winner: " + winner.getName());
                 cardLayout.show(mainContainer, "STATS");
             }
@@ -437,6 +469,107 @@ public class TypingRaceGUI extends JFrame {
 
         doc.setCharacterAttributes(0, progress, completedStyle, true);
         doc.setCharacterAttributes(progress, len - progress, pendingStyle, true);
+    }
+
+    // Method to generate tabs for Statisctics
+    private void generateStatsView(long timeTakenMs) {
+        statsContentPanel.removeAll();
+        double minutes = timeTakenMs / 60000.0;
+        
+        JTabbedPane tabbedPane = new JTabbedPane();
+
+        JPanel currentRacePanel = new JPanel();
+        currentRacePanel.setLayout(new BoxLayout(currentRacePanel, BoxLayout.Y_AXIS));
+        currentRacePanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Data for the chart
+        java.util.List<String> names = new java.util.ArrayList<>();
+        java.util.List<Integer> wpms = new java.util.ArrayList<>();
+        java.util.List<Color> colors = new java.util.ArrayList<>();
+
+        for (Typist t : activeTypists) {
+
+            int wpm = (int) Math.round((t.getProgress() / 5.0) / minutes);
+            
+            //  Accuracy Percentage
+            int totalKeys = t.getTotalKeystrokes();
+            int mistakes = t.getMistypeCount();
+            double accPercent = totalKeys == 0 ? 0 : ((totalKeys - mistakes) / (double)totalKeys) * 100.0;
+            
+            // Burnout Count
+            int burnouts = t.getTotalBurnoutEvents();
+
+            // Save to History
+            raceHistory.putIfAbsent(t.getName(), new java.util.ArrayList<>());
+            raceHistory.get(t.getName()).add(new RaceRecord(wpm, accPercent, burnouts));
+
+            // Print on screen
+            JPanel row = new JPanel(new GridLayout(1, 4));
+            row.setBorder(BorderFactory.createTitledBorder(t.getName() + " [" + t.getSymbol() + "]"));
+            row.add(new JLabel("WPM: " + wpm));
+            row.add(new JLabel(String.format("Accuracy: %.1f%%", accPercent)));
+            row.add(new JLabel("Mistypes: " + mistakes));
+            row.add(new JLabel("Burnouts: " + burnouts));
+            
+            currentRacePanel.add(row);
+
+            // Add to chart lists
+            names.add(t.getName());
+            wpms.add(wpm);
+            colors.add(t.getColor());
+        }
+        tabbedPane.addTab("Current Race", new JScrollPane(currentRacePanel));
+
+        JPanel historyPanel = new JPanel();
+        historyPanel.setLayout(new BoxLayout(historyPanel, BoxLayout.Y_AXIS));
+        
+        for (String name : raceHistory.keySet()) {
+            java.util.List<RaceRecord> records = raceHistory.get(name);
+            int maxWpm = 0;
+            double avgAcc = 0;
+            for (RaceRecord r : records) {
+                if (r.wpm > maxWpm) maxWpm = r.wpm;
+                avgAcc += r.accuracy;
+            }
+            avgAcc /= records.size();
+
+            JPanel hRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            hRow.setBorder(BorderFactory.createTitledBorder(name + "'s Lifetime Stats"));
+            hRow.add(new JLabel("Total Races: " + records.size() + " | "));
+            hRow.add(new JLabel("Personal Best WPM: " + maxWpm + " | "));
+            hRow.add(new JLabel(String.format("Avg Accuracy: %.1f%%", avgAcc)));
+            historyPanel.add(hRow);
+        }
+        tabbedPane.addTab("History & Bests", new JScrollPane(historyPanel));
+
+        JPanel chartPanel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (wpms.isEmpty()) return;
+                int maxWpm = java.util.Collections.max(wpms);
+                if (maxWpm == 0) maxWpm = 1; // Prevent divide by zero
+                
+                int width = getWidth();
+                int height = getHeight();
+                int barWidth = width / wpms.size() - 20;
+
+                for (int i = 0; i < wpms.size(); i++) {
+                    int barHeight = (int) (((double) wpms.get(i) / maxWpm) * (height - 50));
+                    g.setColor(colors.get(i));
+                    g.fillRect(10 + i * (barWidth + 20), height - barHeight - 20, barWidth, barHeight);
+                    
+                    g.setColor(Color.BLACK);
+                    g.drawString(names.get(i) + " (" + wpms.get(i) + ")", 10 + i * (barWidth + 20), height - 5);
+                }
+            }
+        };
+        chartPanel.setBackground(Color.WHITE);
+        tabbedPane.addTab("WPM Comparison Chart", chartPanel);
+
+        statsContentPanel.add(tabbedPane, BorderLayout.CENTER);
+        statsContentPanel.revalidate();
+        statsContentPanel.repaint();
     }
 
     public static void main(String[] args) {
