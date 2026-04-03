@@ -94,6 +94,11 @@ public class TypingRaceGUI extends JFrame {
         caffeineCheck = new JCheckBox("Caffeine Mode (Speed boost, high burnout)");
         nightShiftCheck = new JCheckBox("Night Shift (Lower Accuracy)");
         
+        // ADDED TOOLTIPS FOR GLOBAL MODIFIERS
+        autocorrectCheck.setToolTipText("Reduces mistype penalty from 2 steps back to 1 step.");
+        caffeineCheck.setToolTipText("Grants 2x speed for the first 10 turns, but heavily increases burnout risk afterwards.");
+        nightShiftCheck.setToolTipText("Reduces accuracy for all typists by 10%.");
+        
         modPanel.add(autocorrectCheck);
         modPanel.add(caffeineCheck);
         modPanel.add(nightShiftCheck);
@@ -188,14 +193,18 @@ public class TypingRaceGUI extends JFrame {
 
             p.add(new JLabel("Typing Style:"));
             JComboBox<String> styleBox = new JComboBox<>(new String[]{"Touch Typist", "Hunt & Peck", "Phone Thumbs", "Voice-to-Text"});
+            // ADDED TOOLTIP 
+            styleBox.setToolTipText("Touch: +Acc | Hunt: -Acc | Phone: +Burnout | Voice: +Acc, but huge mistype penalty");
             p.add(styleBox);
 
             p.add(new JLabel("Keyboard:"));
             JComboBox<String> kbBox = new JComboBox<>(new String[]{"Mechanical", "Membrane", "Touchscreen", "Stenography"});
+            kbBox.setToolTipText("Mech: +Acc | Touch: -Acc | Steno: 2x Speed, but huge -Acc");
             p.add(kbBox);
 
             p.add(new JLabel("Accessories:"));
             JComboBox<String> accBox = new JComboBox<>(new String[]{"None", "Wrist Support", "Energy Drink", "Noise-Cancelling Headphones"});
+            accBox.setToolTipText("Wrist: Quick Recovery | Energy: Good 1st half, Bad 2nd half | Headphones: +Acc");
             p.add(accBox);
 
             p.add(new JLabel("Symbol (Emoji/Char):"));
