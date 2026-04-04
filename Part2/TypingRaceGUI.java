@@ -29,11 +29,12 @@ public class TypingRaceGUI extends JFrame {
 
     // Inner class to store past race records
     class RaceRecord {
+        int position;
         int wpm;
         double accuracy;
         int burnouts;
-        public RaceRecord(int wpm, double accuracy, int burnouts) {
-            this.wpm = wpm; this.accuracy = accuracy; this.burnouts = burnouts;
+        public RaceRecord(int position, int wpm, double accuracy, int burnouts) {
+            this.position = position; this.wpm = wpm; this.accuracy = accuracy; this.burnouts = burnouts;
         }
     }
 
@@ -478,36 +479,54 @@ public class TypingRaceGUI extends JFrame {
         
         JTabbedPane tabbedPane = new JTabbedPane();
 
+        // Sort typists by progress to determine final positions
+        java.util.List<Typist> sortedTypists = new java.util.ArrayList<>(activeTypists);
+        sortedTypists.sort((a, b) -> Integer.compare(b.getProgress(), a.getProgress()));
+
+        // Cureen Race Stats
         JPanel currentRacePanel = new JPanel();
         currentRacePanel.setLayout(new BoxLayout(currentRacePanel, BoxLayout.Y_AXIS));
         currentRacePanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Data for the chart
+        // Data lists for the interactive chart
         java.util.List<String> names = new java.util.ArrayList<>();
         java.util.List<Integer> wpms = new java.util.ArrayList<>();
+        java.util.List<Double> accuracies = new java.util.ArrayList<>();
+        java.util.List<Integer> burnoutsList = new java.util.ArrayList<>();
         java.util.List<Color> colors = new java.util.ArrayList<>();
 
-        for (Typist t : activeTypists) {
-
+       for (Typist t : activeTypists) {
+            int position = sortedTypists.indexOf(t) + 1;
+            
+            // WPM
             int wpm = (int) Math.round((t.getProgress() / 5.0) / minutes);
             
-            //  Accuracy Percentage
+            // Accuracy Percentage
             int totalKeys = t.getTotalKeystrokes();
             int mistakes = t.getMistypeCount();
             double accPercent = totalKeys == 0 ? 0 : ((totalKeys - mistakes) / (double)totalKeys) * 100.0;
             
             // Burnout Count
             int burnouts = t.getTotalBurnoutEvents();
+            
+            double accChange = 0.0;
+
+            if (raceHistory.containsKey(t.getName()) && !raceHistory.get(t.getName()).isEmpty()) {
+                java.util.List<RaceRecord> pastRecords = raceHistory.get(t.getName());
+                double lastAcc = pastRecords.get(pastRecords.size() - 1).accuracy;
+                accChange = accPercent - lastAcc;
+            }
 
             // Save to History
             raceHistory.putIfAbsent(t.getName(), new java.util.ArrayList<>());
-            raceHistory.get(t.getName()).add(new RaceRecord(wpm, accPercent, burnouts));
+            raceHistory.get(t.getName()).add(new RaceRecord(position, wpm, accPercent, burnouts));
 
             // Print on screen
-            JPanel row = new JPanel(new GridLayout(1, 4));
-            row.setBorder(BorderFactory.createTitledBorder(t.getName() + " [" + t.getSymbol() + "]"));
+            JPanel row = new JPanel(new GridLayout(1, 5));
+            row.setBorder(BorderFactory.createTitledBorder(t.getName() + " [" + t.getSymbol() + "] - Position: " + position));
             row.add(new JLabel("WPM: " + wpm));
             row.add(new JLabel(String.format("Accuracy: %.1f%%", accPercent)));
+            row.add(new JLabel(String.format("Acc Change: %+.1f%%", accChange)));
             row.add(new JLabel("Mistypes: " + mistakes));
             row.add(new JLabel("Burnouts: " + burnouts));
             
@@ -516,10 +535,13 @@ public class TypingRaceGUI extends JFrame {
             // Add to chart lists
             names.add(t.getName());
             wpms.add(wpm);
+            accuracies.add(accPercent);
+            burnoutsList.add(burnouts);
             colors.add(t.getColor());
         }
         tabbedPane.addTab("Current Race", new JScrollPane(currentRacePanel));
 
+        // History and Bests
         JPanel historyPanel = new JPanel();
         historyPanel.setLayout(new BoxLayout(historyPanel, BoxLayout.Y_AXIS));
         
@@ -527,45 +549,85 @@ public class TypingRaceGUI extends JFrame {
             java.util.List<RaceRecord> records = raceHistory.get(name);
             int maxWpm = 0;
             double avgAcc = 0;
-            for (RaceRecord r : records) {
+            StringBuilder trend = new StringBuilder();
+            
+            for (int i = 0; i < records.size(); i++) {
+                RaceRecord r = records.get(i);
                 if (r.wpm > maxWpm) maxWpm = r.wpm;
                 avgAcc += r.accuracy;
+                
+                // WPM Trend
+                trend.append(r.wpm);
+                if (i < records.size() - 1) trend.append(" -> ");
             }
             avgAcc /= records.size();
 
-            JPanel hRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JPanel hRow = new JPanel(new GridLayout(2, 1));
             hRow.setBorder(BorderFactory.createTitledBorder(name + "'s Lifetime Stats"));
-            hRow.add(new JLabel("Total Races: " + records.size() + " | "));
-            hRow.add(new JLabel("Personal Best WPM: " + maxWpm + " | "));
-            hRow.add(new JLabel(String.format("Avg Accuracy: %.1f%%", avgAcc)));
+            
+            JPanel topRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            topRow.add(new JLabel("Total Races: " + records.size() + " | "));
+            topRow.add(new JLabel("Personal Best WPM: " + maxWpm + " | "));
+            topRow.add(new JLabel(String.format("Avg Accuracy: %.1f%%", avgAcc)));
+            
+            JPanel bottomRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            bottomRow.add(new JLabel("WPM Trend: " + trend.toString()));
+            
+            hRow.add(topRow);
+            hRow.add(bottomRow);
             historyPanel.add(hRow);
         }
-        tabbedPane.addTab("History & Bests", new JScrollPane(historyPanel));
+        tabbedPane.addTab("History & Trends", new JScrollPane(historyPanel));
+
+        // Graphic
+        JPanel compareWrapper = new JPanel(new BorderLayout());
+        
+        // Choose metric
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        controlPanel.add(new JLabel("Select Metric to Compare: "));
+        JComboBox<String> metricBox = new JComboBox<>(new String[]{"WPM", "Accuracy", "Burnouts"});
+        controlPanel.add(metricBox);
+        compareWrapper.add(controlPanel, BorderLayout.NORTH);
 
         JPanel chartPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 if (wpms.isEmpty()) return;
-                int maxWpm = java.util.Collections.max(wpms);
-                if (maxWpm == 0) maxWpm = 1; // Prevent divide by zero
+                
+                String selectedMetric = (String) metricBox.getSelectedItem();
+                java.util.List<Double> values = new java.util.ArrayList<>();
+                
+                // Load data based on selected metric
+                for(int i = 0; i < names.size(); i++) {
+                    if ("WPM".equals(selectedMetric)) values.add((double)wpms.get(i));
+                    else if ("Accuracy".equals(selectedMetric)) values.add(accuracies.get(i));
+                    else values.add((double)burnoutsList.get(i));
+                }
+                
+                double maxVal = java.util.Collections.max(values);
+                if (maxVal == 0) maxVal = 1; // Prevent divide by zero
                 
                 int width = getWidth();
                 int height = getHeight();
-                int barWidth = width / wpms.size() - 20;
+                int barWidth = width / values.size() - 20;
 
-                for (int i = 0; i < wpms.size(); i++) {
-                    int barHeight = (int) (((double) wpms.get(i) / maxWpm) * (height - 50));
+                for (int i = 0; i < values.size(); i++) {
+                    int barHeight = (int) ((values.get(i) / maxVal) * (height - 50));
                     g.setColor(colors.get(i));
                     g.fillRect(10 + i * (barWidth + 20), height - barHeight - 20, barWidth, barHeight);
                     
                     g.setColor(Color.BLACK);
-                    g.drawString(names.get(i) + " (" + wpms.get(i) + ")", 10 + i * (barWidth + 20), height - 5);
+                    String labelVal = "Accuracy".equals(selectedMetric) ? String.format("%.1f", values.get(i)) : String.valueOf(values.get(i).intValue());
+                    g.drawString(names.get(i) + " (" + labelVal + ")", 10 + i * (barWidth + 20), height - 5);
                 }
             }
         };
         chartPanel.setBackground(Color.WHITE);
-        tabbedPane.addTab("WPM Comparison Chart", chartPanel);
+        metricBox.addActionListener(e -> chartPanel.repaint());
+        compareWrapper.add(chartPanel, BorderLayout.CENTER);
+        
+        tabbedPane.addTab("Comparison Chart", compareWrapper);
 
         statsContentPanel.add(tabbedPane, BorderLayout.CENTER);
         statsContentPanel.revalidate();
