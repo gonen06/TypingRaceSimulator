@@ -7,7 +7,7 @@ Object Oriented Programming Project — ECS414U
 ```
 TypingRaceSimulator/
 ├── Part1/    # Textual simulation (Java, command-line)
-└── Part2/    # GUI simulation (to be completed)
+└── Part2/    # GUI simulation (Java Swing)
 ```
 
 ## Part 1 — Textual Simulation
@@ -42,15 +42,32 @@ java TypingRace
 
 ## Part 2 — GUI Simulation
 
-To be implemented as part of the coursework. Place all GUI-related source files in this folder. The graphical version is started by calling `startRaceGUI()`.
+This folder contains the graphical version of the simulation. It includes the complete GUI interface for the program.
+
+### How to run
+
+As required, the graphical version is started by calling startRaceGUI(). The TypingRace class provides a main method that automatically triggers this graphical entry point.
+
+Simply run:
+```java
+java TypingRace
+```
+
+Then run:
+
+```bash
+javac Typist.java TypingRaceGUI.java TypingRace.java
+```
+
+
 
 ## Dependencies
 
 - Java Development Kit (JDK) 11 or higher
 - No external libraries required for Part 1
-- Part 2 may use Java Swing (included in standard JDK) or JavaFX
+- Part 2 uses Java Swing (included in standard JDK)
 
 ## Notes
 
 - All code should compile and run using standard command-line tools without any IDE-specific configuration.
-- The starter code in Part1 was originally written by Ty Posaurus. It contains known issues — finding and fixing them is part of the coursework.
+- The bugs has been fixed. Feel free to contribute to the project.
