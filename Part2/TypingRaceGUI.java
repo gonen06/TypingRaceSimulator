@@ -22,10 +22,14 @@ public class TypingRaceGUI extends JFrame {
     private JPanel progressContainer;
     private String currentPassage = "The quick brown fox jumps over the lazy dog.";
 
-    // Statistics
+    // Statistics & Economy
     private long startTime;
     private JPanel statsContentPanel; 
     private java.util.Map<String, java.util.List<RaceRecord>> raceHistory = new java.util.HashMap<>();
+    
+    // Economy Trackers
+    private java.util.Map<String, Integer> playerBank = new java.util.HashMap<>();
+    private java.util.Map<String, String> currentSponsors = new java.util.HashMap<>();
 
     // Inner class to store past race records
     class RaceRecord {
@@ -34,8 +38,9 @@ public class TypingRaceGUI extends JFrame {
         double accuracy;
         int burnouts;
         int points; // for Leaderboard
-        public RaceRecord(int position, int wpm, double accuracy, int burnouts, int points) {
-            this.position = position; this.wpm = wpm; this.accuracy = accuracy; this.burnouts = burnouts; this.points = points;
+        int earnings; // for Economy
+        public RaceRecord(int position, int wpm, double accuracy, int burnouts, int points, int earnings) {
+            this.position = position; this.wpm = wpm; this.accuracy = accuracy; this.burnouts = burnouts; this.points = points; this.earnings = earnings;
         }
     }
 
@@ -137,7 +142,7 @@ public class TypingRaceGUI extends JFrame {
                     JOptionPane.showMessageDialog(this, "Please enter some custom text!");
                     return;
                 }
-                currentPassage = userText; // Update the race text
+                currentPassage = userText; 
             } else {
                 String selected = (String) passageBox.getSelectedItem();
                 if ("Short Passage".equals(selected)) currentPassage = "The quick brown fox.";
@@ -204,9 +209,12 @@ public class TypingRaceGUI extends JFrame {
 
         // Create individual settings block for each typist
         for (int i = 1; i <= count; i++) {
+            String playerName = "Player " + i;
+            int coins = playerBank.getOrDefault(playerName, 0);
+
             JPanel p = new JPanel();
             p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-            p.setBorder(BorderFactory.createTitledBorder("Typist #" + i));
+            p.setBorder(BorderFactory.createTitledBorder(playerName + " (Bank: " + coins + " Coins)"));
 
             p.add(new JLabel("Color:"));
             JComboBox<String> colorBox = new JComboBox<>(new String[]{"Red", "Blue", "Green", "Yellow", "Magenta"});
@@ -223,9 +231,39 @@ public class TypingRaceGUI extends JFrame {
             kbBox.setToolTipText("Mech: +Acc | Touch: -Acc | Steno: 2x Speed, but huge -Acc");
             p.add(kbBox);
 
-            p.add(new JLabel("Accessories:"));
-            JComboBox<String> accBox = new JComboBox<>(new String[]{"None", "Wrist Support", "Energy Drink", "Noise-Cancelling Headphones"});
-            accBox.setToolTipText("Wrist: Quick Recovery | Energy: Good 1st half, Bad 2nd half | Headphones: +Acc");
+            // Sponsor Deals 
+            p.add(new JLabel("Sponsor (Bonus Coins):"));
+            JComboBox<String> sponsorBox = new JComboBox<>(new String[]{
+                "None",
+                "KeyCorp (0 Burnouts = +50)",
+                "MotivationCharity (Last Place = +100)",
+                "SpeedBoosters (WPM > 60 = +75)"
+            });
+            p.add(sponsorBox);
+
+            // Accessories with prices
+            p.add(new JLabel("Accessories (Cost):"));
+            JComboBox<String> accBox = new JComboBox<>(new String[]{
+                "None (0)", 
+                "Energy Drink (30 coins)", 
+                "Wrist Support (50 coins)", 
+                "Noise-Cancelling Headphones (75 coins)"
+            });
+            accBox.setToolTipText("Costs coins! Wrist: Quick Recovery | Energy: Good 1st half | Headphones: +Acc");
+            
+            // Prevent selection if the racer can't afford it
+            accBox.addActionListener(e -> {
+                String selected = (String) accBox.getSelectedItem();
+                int cost = 0;
+                if (selected.contains("30")) cost = 30;
+                else if (selected.contains("50")) cost = 50;
+                else if (selected.contains("75")) cost = 75;
+
+                if (coins < cost) {
+                    JOptionPane.showMessageDialog(mainContainer, playerName + " cannot afford this! Requires " + cost + " coins.");
+                    accBox.setSelectedIndex(0);
+                }
+            });
             p.add(accBox);
 
             p.add(new JLabel("Symbol (Emoji/Char):"));
@@ -244,7 +282,19 @@ public class TypingRaceGUI extends JFrame {
         startRaceBtn.addActionListener(e -> {
             collectTypistData(count, container);
             
-            // Reset typists before the race starts to clear previous stats
+            // Deduct accessory costs
+            for (int i = 0; i < count; i++) {
+                JPanel p = (JPanel) container.getComponent(i);
+                String accRaw = (String) ((JComboBox<?>) p.getComponent(9)).getSelectedItem();
+                String playerName = "Player " + (i + 1);
+                int cost = 0;
+                if (accRaw.contains("30")) cost = 30;
+                else if (accRaw.contains("50")) cost = 50;
+                else if (accRaw.contains("75")) cost = 75;
+
+                playerBank.put(playerName, playerBank.getOrDefault(playerName, 0) - cost);
+            }
+
             for(Typist t : activeTypists) {
                 t.resetToStart(); 
             }
@@ -252,7 +302,7 @@ public class TypingRaceGUI extends JFrame {
             setupRaceScreen();
             cardLayout.show(mainContainer, "RACE"); 
             
-            startTime = System.currentTimeMillis(); // Start timer for WPM
+            startTime = System.currentTimeMillis(); 
             startRaceAnimation();
         });
         customizePanel.add(startRaceBtn, BorderLayout.SOUTH);
@@ -263,6 +313,7 @@ public class TypingRaceGUI extends JFrame {
 
     private void collectTypistData(int count, JPanel container) {
         activeTypists.clear();
+        currentSponsors.clear();
         Component[] typistPanels = container.getComponents();
 
         for (int i = 0; i < count; i++) {
@@ -271,12 +322,22 @@ public class TypingRaceGUI extends JFrame {
             String colorStr = (String) ((JComboBox<?>) p.getComponent(1)).getSelectedItem();
             String style = (String) ((JComboBox<?>) p.getComponent(3)).getSelectedItem();
             String kb = (String) ((JComboBox<?>) p.getComponent(5)).getSelectedItem();
-            String acc = (String) ((JComboBox<?>) p.getComponent(7)).getSelectedItem();
-            String sym = ((JTextField) p.getComponent(9)).getText();
+            String sponsorStr = (String) ((JComboBox<?>) p.getComponent(7)).getSelectedItem();
+            String accRaw = (String) ((JComboBox<?>) p.getComponent(9)).getSelectedItem();
+            String sym = ((JTextField) p.getComponent(11)).getText();
             
+            String playerName = "Player " + (i+1);
+            currentSponsors.put(playerName, sponsorStr);
+            
+            // Parse accessory string to internal names
+            String acc = "None";
+            if (accRaw.contains("Wrist")) acc = "Wrist Support";
+            else if (accRaw.contains("Energy")) acc = "Energy Drink";
+            else if (accRaw.contains("Headphones")) acc = "Noise-Cancelling Headphones";
+
             char symbolChar = sym.isEmpty() ? '?' : sym.charAt(0);
 
-            Typist t = new Typist(symbolChar, "Player " + (i+1), 0.7); 
+            Typist t = new Typist(symbolChar, playerName, 0.7); 
             t.setTypingStyle(style);
             t.setKeyboardType(kb);
             t.setAccessory(acc);
@@ -323,7 +384,7 @@ public class TypingRaceGUI extends JFrame {
             textPane.setEditable(false);
             textPane.setFont(new Font("Monospaced", Font.BOLD, 16));
             textPane.setText(currentPassage);
-            typistTextPanes.add(textPane); // Save to list to update later
+            typistTextPanes.add(textPane); 
             
             // Bottom: Progress Bar
             JProgressBar bar = new JProgressBar(0, currentPassage.length());
@@ -332,7 +393,7 @@ public class TypingRaceGUI extends JFrame {
             bar.setForeground(t.getColor());
             
             bar.setUI(new javax.swing.plaf.basic.BasicProgressBarUI());
-            progressBars.add(bar); // Save to list to update later
+            progressBars.add(bar); 
             
             JPanel centerP = new JPanel(new BorderLayout(0, 5));
             centerP.add(new JScrollPane(textPane), BorderLayout.CENTER);
@@ -529,12 +590,38 @@ public class TypingRaceGUI extends JFrame {
             int burnoutPenalty = burnouts;
             int pointsEarned = Math.max(0, positionPoints + wpmBonus - burnoutPenalty);
 
+            // Earnings Algorithm
+
+            // 1. Position Earnings
+          int baseCoins = 35 - (position * 5);
+
+            // 2. Spead Earnings
+            int speedCoinBonus = wpm > 30 ? (wpm - 30) : 0; 
+
+            // 3. Burnout Penalty
+            int burnoutCoinPenalty = burnouts * 5;
+
+            // 4. Minimum 10 coins
+            int raceEarnings = Math.max(10, baseCoins + speedCoinBonus - burnoutCoinPenalty);
+
+            // Sponsor Deals
+            String sponsor = currentSponsors.getOrDefault(t.getName(), "None");
+            int sponsorBonus = 0;
+            if (sponsor.contains("KeyCorp") && burnouts == 0) sponsorBonus = 50;
+            else if (sponsor.contains("MotivationCharity") && position == activeTypists.size()) sponsorBonus = 100;
+            else if (sponsor.contains("SpeedBoosters") && wpm > 60) sponsorBonus = 75;
+
+            int totalEarned = raceEarnings + sponsorBonus;
+
+            // Update the Bank
+            playerBank.put(t.getName(), playerBank.getOrDefault(t.getName(), 0) + totalEarned);
+
             // Save to History
             raceHistory.putIfAbsent(t.getName(), new java.util.ArrayList<>());
-            raceHistory.get(t.getName()).add(new RaceRecord(position, wpm, accPercent, burnouts, pointsEarned));
+            raceHistory.get(t.getName()).add(new RaceRecord(position, wpm, accPercent, burnouts, pointsEarned, totalEarned));
 
             // Print on screen
-            JPanel row = new JPanel(new GridLayout(1, 6));
+            JPanel row = new JPanel(new GridLayout(1, 7));
             row.setBorder(BorderFactory.createTitledBorder(t.getName() + " [" + t.getSymbol() + "] - Position: " + position));
             row.add(new JLabel("WPM: " + wpm));
             row.add(new JLabel(String.format("Accuracy: %.1f%%", accPercent)));
@@ -542,6 +629,7 @@ public class TypingRaceGUI extends JFrame {
             row.add(new JLabel("Mistypes: " + mistakes));
             row.add(new JLabel("Burnouts: " + burnouts));
             row.add(new JLabel("Points: +" + pointsEarned));
+            row.add(new JLabel("Earned: " + totalEarned + " Coins")); // Display earnings
             
             currentRacePanel.add(row);
 
@@ -658,22 +746,15 @@ public class TypingRaceGUI extends JFrame {
         for (String name : raceHistory.keySet()) {
             java.util.List<RaceRecord> records = raceHistory.get(name);
             int totalPts = 0;
-            int consecutiveWins = 0;
-            int maxConsecutiveWins = 0;
-            int consecutiveNoBurnouts = 0;
-            int maxConsecutiveNoBurnouts = 0;
+            int consecutiveWins = 0, maxConsecutiveWins = 0;
+            int consecutiveNoBurnouts = 0, maxConsecutiveNoBurnouts = 0;
 
             for (RaceRecord r : records) {
-                totalPts += r.points; // Sum cumulative points
-
-                // Task 22 Logic: Consecutive Wins
-                if (r.position == 1) consecutiveWins++;
-                else consecutiveWins = 0;
+                totalPts += r.points; 
+                if (r.position == 1) consecutiveWins++; else consecutiveWins = 0;
                 maxConsecutiveWins = Math.max(maxConsecutiveWins, consecutiveWins);
-
-                // Task 22 Logic: Consecutive No Burnouts
-                if (r.burnouts == 0) consecutiveNoBurnouts++;
-                else consecutiveNoBurnouts = 0;
+                
+                if (r.burnouts == 0) consecutiveNoBurnouts++; else consecutiveNoBurnouts = 0;
                 maxConsecutiveNoBurnouts = Math.max(maxConsecutiveNoBurnouts, consecutiveNoBurnouts);
             }
 
@@ -688,8 +769,7 @@ public class TypingRaceGUI extends JFrame {
         // Sort descending by total points
         ranking.sort((a, b) -> Integer.compare(b.totalPoints, a.totalPoints));
 
-        // Display Leaderboard
-        JLabel lbTitle = new JLabel("Global Leaderboard");
+        JLabel lbTitle = new JLabel("Global Leaderboard & Bank");
         lbTitle.setFont(new Font("Arial", Font.BOLD, 20));
         leaderboardPanel.add(lbTitle);
         leaderboardPanel.add(Box.createVerticalStrut(10));
@@ -699,9 +779,11 @@ public class TypingRaceGUI extends JFrame {
             JPanel rRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
             rRow.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY));
             
-            JLabel rLabel = new JLabel((i + 1) + ". " + pr.name + " - " + pr.totalPoints + " pts   " + pr.badges);
+            int totalCoins = playerBank.getOrDefault(pr.name, 0); // Get Bank status
+
+            JLabel rLabel = new JLabel((i + 1) + ". " + pr.name + " - " + pr.totalPoints + " Pts | " + totalCoins + " Coins   " + pr.badges);
             rLabel.setFont(new Font("Arial", Font.BOLD, 16));
-            if (!pr.badges.isEmpty()) rLabel.setForeground(new Color(204, 102, 0)); // Highlight badge owners
+            if (!pr.badges.isEmpty()) rLabel.setForeground(new Color(204, 102, 0)); 
             
             rRow.add(rLabel);
             leaderboardPanel.add(rRow);
