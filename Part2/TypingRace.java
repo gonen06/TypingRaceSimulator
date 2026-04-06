@@ -270,4 +270,9 @@ public class TypingRace
             i = i + 1;
         }
     }
+    public static void main(String[] args) {
+        // Start the GUI
+        TypingRaceGUI.startRaceGUI();
+    }
 }
+

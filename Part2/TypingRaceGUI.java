@@ -73,6 +73,13 @@ public class TypingRaceGUI extends JFrame {
         cardLayout.show(mainContainer, "CONFIG");
     }
 
+    public static void startRaceGUI() {
+        SwingUtilities.invokeLater(() -> {
+        TypingRaceGUI gui = new TypingRaceGUI();
+        gui.setVisible(true);
+        });
+    }
+
     private JPanel createConfigPanel() {
         // Setup for the initial race configuration screen
         JPanel panel = new JPanel(new BorderLayout(20, 20));
@@ -797,8 +804,6 @@ public class TypingRaceGUI extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new TypingRaceGUI().setVisible(true);
-        });
+        startRaceGUI();
     }
 }
