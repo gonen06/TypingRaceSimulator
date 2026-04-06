@@ -22,7 +22,7 @@ public class TypingRaceGUI extends JFrame {
     private JPanel progressContainer;
     private String currentPassage = "The quick brown fox jumps over the lazy dog.";
 
-    // Statisctics
+    // Statistics
     private long startTime;
     private JPanel statsContentPanel; 
     private java.util.Map<String, java.util.List<RaceRecord>> raceHistory = new java.util.HashMap<>();
@@ -33,8 +33,9 @@ public class TypingRaceGUI extends JFrame {
         int wpm;
         double accuracy;
         int burnouts;
-        public RaceRecord(int position, int wpm, double accuracy, int burnouts) {
-            this.position = position; this.wpm = wpm; this.accuracy = accuracy; this.burnouts = burnouts;
+        int points; // for Leaderboard
+        public RaceRecord(int position, int wpm, double accuracy, int burnouts, int points) {
+            this.position = position; this.wpm = wpm; this.accuracy = accuracy; this.burnouts = burnouts; this.points = points;
         }
     }
 
@@ -472,7 +473,7 @@ public class TypingRaceGUI extends JFrame {
         doc.setCharacterAttributes(progress, len - progress, pendingStyle, true);
     }
 
-    // Method to generate tabs for Statisctics
+    // Method to generate tabs for Statistics
     private void generateStatsView(long timeTakenMs) {
         statsContentPanel.removeAll();
         double minutes = timeTakenMs / 60000.0;
@@ -483,7 +484,7 @@ public class TypingRaceGUI extends JFrame {
         java.util.List<Typist> sortedTypists = new java.util.ArrayList<>(activeTypists);
         sortedTypists.sort((a, b) -> Integer.compare(b.getProgress(), a.getProgress()));
 
-        // Cureen Race Stats
+        // Current Race Stats
         JPanel currentRacePanel = new JPanel();
         currentRacePanel.setLayout(new BoxLayout(currentRacePanel, BoxLayout.Y_AXIS));
         currentRacePanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -517,18 +518,30 @@ public class TypingRaceGUI extends JFrame {
                 accChange = accPercent - lastAcc;
             }
 
+            // Point Algorithm
+
+            int positionPoints = 0;
+            if (position == 1) positionPoints = 3;
+            else if (position == 2) positionPoints = 2;
+            else if (position == 3) positionPoints = 1;
+            
+            int wpmBonus = wpm / 10;
+            int burnoutPenalty = burnouts;
+            int pointsEarned = Math.max(0, positionPoints + wpmBonus - burnoutPenalty);
+
             // Save to History
             raceHistory.putIfAbsent(t.getName(), new java.util.ArrayList<>());
-            raceHistory.get(t.getName()).add(new RaceRecord(position, wpm, accPercent, burnouts));
+            raceHistory.get(t.getName()).add(new RaceRecord(position, wpm, accPercent, burnouts, pointsEarned));
 
             // Print on screen
-            JPanel row = new JPanel(new GridLayout(1, 5));
+            JPanel row = new JPanel(new GridLayout(1, 6));
             row.setBorder(BorderFactory.createTitledBorder(t.getName() + " [" + t.getSymbol() + "] - Position: " + position));
             row.add(new JLabel("WPM: " + wpm));
             row.add(new JLabel(String.format("Accuracy: %.1f%%", accPercent)));
             row.add(new JLabel(String.format("Acc Change: %+.1f%%", accChange)));
             row.add(new JLabel("Mistypes: " + mistakes));
             row.add(new JLabel("Burnouts: " + burnouts));
+            row.add(new JLabel("Points: +" + pointsEarned));
             
             currentRacePanel.add(row);
 
@@ -628,6 +641,73 @@ public class TypingRaceGUI extends JFrame {
         compareWrapper.add(chartPanel, BorderLayout.CENTER);
         
         tabbedPane.addTab("Comparison Chart", compareWrapper);
+
+        // Leaderboard
+        JPanel leaderboardPanel = new JPanel();
+        leaderboardPanel.setLayout(new BoxLayout(leaderboardPanel, BoxLayout.Y_AXIS));
+        leaderboardPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Helper class to sort leaderboard
+        class PlayerRank {
+            String name; int totalPoints; String badges;
+            PlayerRank(String n, int p, String b) { name=n; totalPoints=p; badges=b; }
+        }
+        java.util.List<PlayerRank> ranking = new java.util.ArrayList<>();
+
+        // Calculate points and badges for each player
+        for (String name : raceHistory.keySet()) {
+            java.util.List<RaceRecord> records = raceHistory.get(name);
+            int totalPts = 0;
+            int consecutiveWins = 0;
+            int maxConsecutiveWins = 0;
+            int consecutiveNoBurnouts = 0;
+            int maxConsecutiveNoBurnouts = 0;
+
+            for (RaceRecord r : records) {
+                totalPts += r.points; // Sum cumulative points
+
+                // Task 22 Logic: Consecutive Wins
+                if (r.position == 1) consecutiveWins++;
+                else consecutiveWins = 0;
+                maxConsecutiveWins = Math.max(maxConsecutiveWins, consecutiveWins);
+
+                // Task 22 Logic: Consecutive No Burnouts
+                if (r.burnouts == 0) consecutiveNoBurnouts++;
+                else consecutiveNoBurnouts = 0;
+                maxConsecutiveNoBurnouts = Math.max(maxConsecutiveNoBurnouts, consecutiveNoBurnouts);
+            }
+
+            // Award Badges
+            StringBuilder badges = new StringBuilder();
+            if (maxConsecutiveWins >= 3) badges.append("[Speed Demon] ");
+            if (maxConsecutiveNoBurnouts >= 5) badges.append("[Iron Fingers] ");
+
+            ranking.add(new PlayerRank(name, totalPts, badges.toString()));
+        }
+
+        // Sort descending by total points
+        ranking.sort((a, b) -> Integer.compare(b.totalPoints, a.totalPoints));
+
+        // Display Leaderboard
+        JLabel lbTitle = new JLabel("Global Leaderboard");
+        lbTitle.setFont(new Font("Arial", Font.BOLD, 20));
+        leaderboardPanel.add(lbTitle);
+        leaderboardPanel.add(Box.createVerticalStrut(10));
+
+        for (int i = 0; i < ranking.size(); i++) {
+            PlayerRank pr = ranking.get(i);
+            JPanel rRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            rRow.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY));
+            
+            JLabel rLabel = new JLabel((i + 1) + ". " + pr.name + " - " + pr.totalPoints + " pts   " + pr.badges);
+            rLabel.setFont(new Font("Arial", Font.BOLD, 16));
+            if (!pr.badges.isEmpty()) rLabel.setForeground(new Color(204, 102, 0)); // Highlight badge owners
+            
+            rRow.add(rLabel);
+            leaderboardPanel.add(rRow);
+        }
+
+        tabbedPane.addTab("Leaderboard & Badges", new JScrollPane(leaderboardPanel));
 
         statsContentPanel.add(tabbedPane, BorderLayout.CENTER);
         statsContentPanel.revalidate();
