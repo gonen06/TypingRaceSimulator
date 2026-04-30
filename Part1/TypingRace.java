@@ -270,4 +270,20 @@ public class TypingRace
             i = i + 1;
         }
     }
+
+    public static void main(String[] args) {
+           
+        // 1. Create a new TypingRace with a passage length of 40 characters
+        TypingRace race = new TypingRace(40);
+        
+        // 2. Add three typists to the race
+        race.addTypist(new Typist('①', "TURBOFINGERS", 0.85), 1);
+        race.addTypist(new Typist('②', "QWERTY_QUEEN",  0.60), 2);
+        race.addTypist(new Typist('③', "HUNT_N_PECK",   0.30), 3);
+        
+        // 3. Start the race.
+        race.startRace();
+
+    }
+    
 }
