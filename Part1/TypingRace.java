@@ -18,6 +18,11 @@ public class TypingRace
     private Typist seat2Typist;
     private Typist seat3Typist;
 
+    // Bug Fix: Variables to track if a typist just mistyped in the current turn
+    private boolean seat1Mistyped;
+    private boolean seat2Mistyped;
+    private boolean seat3Mistyped;
+
     // Accuracy thresholds for mistype and burnout events
     // (Ty tuned these values "by feel". They may need adjustment.)
     private static final double MISTYPE_BASE_CHANCE = 0.3;
@@ -85,6 +90,11 @@ public class TypingRace
 
         while (!finished)
         {
+            // Reset mistype trackers at the start of each turn
+            seat1Mistyped = false;
+            seat2Mistyped = false;
+            seat3Mistyped = false;
+
             // Advance each typist by one turn
             advanceTypist(seat1Typist);
             advanceTypist(seat2Typist);
@@ -106,13 +116,16 @@ public class TypingRace
         }
 
         // TODO (Task 2a): Print the winner's name here. DONE
-
+        // Bug Fix: Performance Adjustment -> Winning increases accuracy
         if (raceFinishedBy(seat1Typist)) {
-        System.out.println("And the winner is... " + seat1Typist.getName() + "!");
+            System.out.println("And the winner is... " + seat1Typist.getName() + "!");
+            seat1Typist.setAccuracy(seat1Typist.getAccuracy() + 0.02);
         } else if (raceFinishedBy(seat2Typist)) {
-        System.out.println("And the winner is... " + seat2Typist.getName() + "!");
+            System.out.println("And the winner is... " + seat2Typist.getName() + "!");
+            seat2Typist.setAccuracy(seat2Typist.getAccuracy() + 0.02);
         } else if (raceFinishedBy(seat3Typist)) {
-        System.out.println("And the winner is... " + seat3Typist.getName() + "!");
+            System.out.println("And the winner is... " + seat3Typist.getName() + "!");
+            seat3Typist.setAccuracy(seat3Typist.getAccuracy() + 0.02);
         }
     }
 
@@ -121,19 +134,19 @@ public class TypingRace
      *
      * If the typist is burnt out, they recover one turn's worth and skip typing.
      * Otherwise:
-     *   - They may type a character (advancing progress) based on their accuracy.
-     *   - They may mistype (sliding back) — the chance of a mistype should decrease
-     *     for more accurate typists.
-     *   - They may burn out — more likely for very high-accuracy typists
-     *     who are pushing themselves too hard.
+     * - They may type a character (advancing progress) based on their accuracy.
+     * - They may mistype (sliding back) — the chance of a mistype should decrease
+     * for more accurate typists.
+     * - They may burn out — more likely for very high-accuracy typists
+     * who are pushing themselves too hard.
      *
      * @param theTypist the typist to advance
      */
     private void advanceTypist(Typist theTypist)
     {
         if (theTypist == null) { // to not get NullPointerException 
-        return;
-    }
+            return;
+        }
 
         if (theTypist.isBurntOut())
         {
@@ -149,9 +162,14 @@ public class TypingRace
         }
 
         // Mistype check — the probability should reflect the typist's accuracy
-        if (Math.random() < theTypist.getAccuracy() * MISTYPE_BASE_CHANCE)
+        // Bug Fix: Changed logic to (1.0 - accuracy) so higher accuracy means LESS chance to mistype
+        if (Math.random() < (1.0 - theTypist.getAccuracy()) * MISTYPE_BASE_CHANCE)
         {
             theTypist.slideBack(SLIDE_BACK_AMOUNT);
+            // Track who mistyped for visual output
+            if (theTypist == seat1Typist) seat1Mistyped = true;
+            else if (theTypist == seat2Typist) seat2Mistyped = true;
+            else if (theTypist == seat3Typist) seat3Mistyped = true;
         }
 
         // Burnout check — pushing too hard increases burnout risk
@@ -159,6 +177,8 @@ public class TypingRace
         if (Math.random() < 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy())
         {
             theTypist.burnOut(BURNOUT_DURATION);
+            // Bug Fix: Performance Adjustment -> Burnout decreases accuracy
+            theTypist.setAccuracy(theTypist.getAccuracy() - 0.01);
         }
     }
 
@@ -205,15 +225,15 @@ public class TypingRace
 
         multiplePrint('=', passageLength + 3);
         System.out.println();
-        System.out.println("  [zz] = burnt out    [<] = just mistyped");
+        System.out.println("  [~] = burnt out    [<] = just mistyped");
     }
 
     /**
      * Prints a single typist's lane.
      *
      * Examples:
-     *   |          ⌨           | TURBOFINGERS (Accuracy: 0.85)
-     *   |    [zz]              | HUNT_N_PECK  (Accuracy: 0.40) BURNT OUT (2 turns)
+     * |          ⌨           | TURBOFINGERS (Accuracy: 0.85)
+     * |    [zz]              | HUNT_N_PECK  (Accuracy: 0.40) BURNT OUT (2 turns)
      *
      * Note: Ty forgot to show when a typist has just mistyped. That would
      * be a nice improvement — perhaps a [<] marker after their symbol.
@@ -222,6 +242,8 @@ public class TypingRace
      */
     private void printSeat(Typist theTypist)
     {
+        if (theTypist == null) return;
+
         int spacesBefore = theTypist.getProgress();
         int spacesAfter  = passageLength - theTypist.getProgress();
 
@@ -237,6 +259,19 @@ public class TypingRace
             spacesAfter--; // symbol + ~ together take two characters
         }
 
+        // Bug Fix: Show [<] marker if the typist just mistyped
+        boolean justMistyped = false;
+        if (theTypist == seat1Typist && seat1Mistyped) justMistyped = true;
+        if (theTypist == seat2Typist && seat2Mistyped) justMistyped = true;
+        if (theTypist == seat3Typist && seat3Mistyped) justMistyped = true;
+
+        if (justMistyped) {
+            System.out.print(" [<]");
+            spacesAfter -= 4; // Adjust spacing to keep border aligned
+        }
+        
+        if (spacesAfter < 0) spacesAfter = 0; // Safeguard
+
         multiplePrint(' ', spacesAfter);
         System.out.print('|');
         System.out.print(' ');
@@ -245,13 +280,18 @@ public class TypingRace
         if (theTypist.isBurntOut())
         {
             System.out.print(theTypist.getName()
-                + " (Accuracy: " + theTypist.getAccuracy() + ")"
+                + " (Accuracy: " + String.format("%.2f", theTypist.getAccuracy()) + ")"
                 + " BURNT OUT (" + theTypist.getBurnoutTurnsRemaining() + " turns)");
         }
         else
         {
             System.out.print(theTypist.getName()
-                + " (Accuracy: " + theTypist.getAccuracy() + ")");
+                + " (Accuracy: " + String.format("%.2f", theTypist.getAccuracy()) + ")");
+            
+            // Appending mistype label
+            if (justMistyped) {
+                System.out.print(" <- just mistyped");
+            }
         }
     }
 
